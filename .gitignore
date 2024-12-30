@@ -13,3 +13,5 @@
 
 # Files used when Updating and Testing
 TestFiles/*
+# Used for internal docker repo for testing only
+Image/push.sh

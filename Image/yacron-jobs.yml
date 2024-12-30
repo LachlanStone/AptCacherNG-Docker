@@ -1,0 +1,31 @@
+jobs:
+  - name: Dailys-Default
+    command: ./etc/cron.daily/*
+    shell: /bin/bash
+    schedule: 0 0 * * *
+  - name: e2Scrub_all_1
+    command: test -e /run/systemd/system || SERVICE_MODE=1 /usr/lib/x86_64-linux-gnu/e2fsprogs/e2scrub_all_cron
+    shell: /bin/bash
+    schedule: 10 3 * * 0
+  - name: e2Scrub_all_2
+    command: test -e /run/systemd/system || SERVICE_MODE=1 /sbin/e2scrub_all -A -r
+    shell: /bin/bash
+    schedule: 10 3 * * *
+  - name: Setup_PreCache_and_UpdateFiles
+    command: curl "http://127.0.0.1:3142/acng-report.html?forceRedownload=fRd&calcSize=cs&doDownload=dd&asNeeded=an&doMirror=Start+Mirroring#bottom" >> /dev/null
+    captureStderr: true
+    shell: /bin//bash
+    schedule: 0 * * * * 
+  - name: PurgeNow_UpdateFiles
+    command: curl "http://127.0.0.1:3142/acng-report.html?forceRedownload=fRd&ignoreTradeOff=iTO&purgeNow=pN&doExpire=Start+Scan+and%2For+Expiration&calcSize=cs&asNeeded=an#bottom" >> /dev/null
+    captureStderr: true
+    shell: /bin//bash
+    schedule: 30 0 * * *
+  - name: CheckStatus_YaCron
+    command: curl http://127.0.0.1:8080/status >> ${APT_CACHER_NG_LOG_DIR}/yacron.log 
+    captureStderr: true
+    schedule: '*/5 * * * *'
+web:
+  listen:
+     - http://127.0.0.1:8080
+     - unix:///tmp/yacron.sock

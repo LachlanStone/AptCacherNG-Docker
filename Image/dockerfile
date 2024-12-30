@@ -1,0 +1,66 @@
+# Note: Some Details Referenced from https://github.com/sameersbn/docker-apt-cacher-ng/blob/master/Dockerfile
+
+# Base Details
+FROM debian:bookworm
+LABEL maintainer="LachlanStone"
+
+# Enviromental Variables
+ENV APT_CACHER_NG_VERSION=3.7.4-1+b2 \
+    APT_CACHER_NG_CACHE_DIR=/var/cache/apt-cacher-ng \
+    APT_CACHER_NG_LOG_DIR=/var/log/apt-cacher-ng \
+    APT_CACHER_NG_USER=apt-cacher-ng
+
+ENV VOL_PATH=
+ENV ACNGCONF_PATH=
+
+# Update Install for APT Cacher NG
+RUN apt update -y && \
+    # Set APT to no interactive mode
+    DEBIAN_FRONTEND=noninteractive apt install --install-recommends -y \
+    # Install APT-Cacher-NG, Ca-Certificates and Wget
+    apt-cacher-ng=${APT_CACHER_NG_VERSION}* ca-certificates \
+    python3 pip pipx \
+    # Install Other Components for Testing
+    wget curl nano htop && \
+    # Clean up
+    rm -rf /var/lib/apt/lists/*
+
+# Setup the YaCron 
+RUN pipx install yacron 
+RUN pipx ensurepath
+
+# Setup the Yacron Jobs Components
+COPY yacron-jobs.yml /etc/apt-cacher-ng/yacron-jobs.yml
+RUN chmod 755 /etc/apt-cacher-ng/yacron-jobs.yml
+    
+# Copy the direcotry-build.sh File and Set the Permissions
+COPY directory-build.sh /mnt/directory-build.sh
+RUN chmod 755 /mnt/directory-build.sh
+
+# Copy the EntryPoint.sh File and Set the Permissions
+COPY entrypoint.sh /sbin/entrypoint.sh
+RUN chmod 755 /sbin/entrypoint.sh
+
+# Setup Custom Repos
+COPY Repo-Adder.sh /mnt/Repo-Adder.sh
+RUN chmod 755 /mnt/Repo-Adder.sh
+
+COPY services/yacron.sh /etc/init.d/yacron.sh
+RUN chmod 755 /etc/init.d/yacron.sh
+
+
+# Expose the apt-cacher-ng port to be binded
+EXPOSE 3142/tcp
+EXPOSE 3142/udp
+
+# Run a Health Check Every 10 Seconds with 2 Seconds to Reply with 3 Retrys before dead
+HEALTHCHECK --interval=10s --timeout=2s --retries=3 \
+    CMD wget -q -t1 -O /dev/null  http://localhost:3142/acng-report.html || exit 1
+
+# Set the Entry Point Location
+# ENTRYPOINT ["/sbin/entrypoint.sh"]
+# Tail All Logs Files within the System
+CMD ./mnt/directory-build.sh && \ 
+    ./mnt/Repo-Adder.sh && \
+    ./sbin/entrypoint.sh && \
+    tail -f /var/log/apt-cacher-ng/*
