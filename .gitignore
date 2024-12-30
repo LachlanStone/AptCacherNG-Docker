@@ -15,3 +15,5 @@
 TestFiles/*
 # Used for internal docker repo for testing only
 Image/push.sh
+# Not Required due to internal testing requirements
+ComposeFiles/.env
